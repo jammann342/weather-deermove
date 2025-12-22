@@ -179,6 +179,120 @@ th {
   transform-origin: center;
 }
 
+/* =========================
+   MOBILE FIXES (iOS / Android)
+   ========================= */
+@media (max-width: 600px) {
+
+  /* tighten container */
+  .container {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* cards */
+  .row,
+  .summary-card {
+    padding: 12px;
+  }
+
+  /* reduce heading size */
+  h1 {
+    font-size: 24px;
+  }
+
+  /* shrink form */
+  form input[type="text"],
+  form select,
+  form button {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+}
+@media (max-width: 600px) {
+
+  /* force weather rows to stack */
+  .forecast-row,
+  .hourly-row,
+  .weather-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* hide less-important columns */
+  .col-pressure,
+  .col-gust {
+    display: none;
+  }
+
+}
+@media (max-width: 600px) {
+
+  /* reduce vertical spacing */
+  .row {
+    margin-bottom: 12px;
+  }
+
+  /* compact text */
+  .section-label {
+    margin-top: 8px;
+    font-size: 12px;
+  }
+
+}
+* {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+/* =========================
+   MOBILE TABLE FIX (iOS)
+   ========================= */
+@media (max-width: 600px) {
+
+  /* turn table into block layout */
+  table,
+  thead,
+  tbody,
+  tr,
+  th,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  /* hide table header */
+  thead,
+  th {
+    display: none;
+  }
+
+  /* card-style rows */
+  tr {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  td {
+    padding: 6px 0;
+    border: none;
+    font-size: 14px;
+  }
+
+  /* labels before values */
+  td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: #ff6600;
+    margin-bottom: 2px;
+  }
+
+}
 
 </style>
 </head>
@@ -407,37 +521,42 @@ function renderTenDay(days) {
     </tr>
   `;
 
-  days.forEach((d, i) => {
-    html += `
-      <tr onclick="toggleDay(${i})" style="cursor:pointer">
-        <td>
-          <strong>${dayOfWeek(d.date)}</strong>
-          <span style="color:#aaa;margin-left:6px;">${d.date}</span>
-        </td>
-        <td>${d.high}°</td>
-        <td>${d.low}°</td>
-        <td>
-          <span class="wind-arrow"
-                style="transform:rotate(${(d.wind_deg + 180) % 360}deg)">↑</span>
-          ${d.wind_dir}
-        </td>
-        <td>
-	  ${d.moon.icon}
-	  <span style="font-size:13px;color:#aaa;">
-		${d.moon.illum}%
-	  </span>
-	</td>
-		<td>${d.conditions}</td>
+days.forEach((d, i) => {
+  html += `
+    <tr onclick="toggleDay(${i})" style="cursor:pointer">
+      <td data-label="Day / Date">
+        <strong>${dayOfWeek(d.date)}</strong>
+        <span style="color:#aaa;margin-left:6px;">${d.date}</span>
+      </td>
 
-      </tr>
+      <td data-label="High">${d.high}°</td>
 
-      <tr id="day-${i}" style="display:none">
-        <td colspan="6" style="padding:10px;color:#aaa">
-          Hourly forecast will go here
-        </td>
-      </tr>
-    `;
-  });
+      <td data-label="Low">${d.low}°</td>
+
+      <td data-label="Wind">
+        <span class="wind-arrow"
+              style="transform:rotate(${(d.wind_deg + 180) % 360}deg)">↑</span>
+        ${d.wind_dir}
+      </td>
+
+      <td data-label="Moon">
+        ${d.moon.icon}
+        <span style="font-size:13px;color:#aaa;">
+          ${d.moon.illum}%
+        </span>
+      </td>
+
+      <td data-label="Conditions">${d.conditions}</td>
+    </tr>
+
+    <tr id="day-${i}" style="display:none">
+      <td colspan="6" style="padding:10px;color:#aaa">
+        Hourly forecast will go here
+      </td>
+    </tr>
+  `;
+});
+
 
   document.getElementById("ten-day-table").innerHTML = html;
 }

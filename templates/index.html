@@ -178,74 +178,6 @@ th {
   margin-right: 6px;
   transform-origin: center;
 }
-
-/* =========================
-   MOBILE FIXES (iOS / Android)
-   ========================= */
-@media (max-width: 600px) {
-
-  /* tighten container */
-  .container {
-    width: 100%;
-    padding: 12px;
-  }
-
-  /* cards */
-  .row,
-  .summary-card {
-    padding: 12px;
-  }
-
-  /* reduce heading size */
-  h1 {
-    font-size: 24px;
-  }
-
-  /* shrink form */
-  form input[type="text"],
-  form select,
-  form button {
-    font-size: 16px;
-    padding: 10px;
-  }
-
-}
-@media (max-width: 600px) {
-
-  /* force weather rows to stack */
-  .forecast-row,
-  .hourly-row,
-  .weather-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  /* hide less-important columns */
-  .col-pressure,
-  .col-gust {
-    display: none;
-  }
-
-}
-@media (max-width: 600px) {
-
-  /* reduce vertical spacing */
-  .row {
-    margin-bottom: 12px;
-  }
-
-  /* compact text */
-  .section-label {
-    margin-top: 8px;
-    font-size: 12px;
-  }
-
-}
-* {
-  box-sizing: border-box;
-  max-width: 100%;
-}
 /* =========================
    MOBILE TABLE FIX (iOS)
    ========================= */
@@ -293,6 +225,174 @@ th {
   }
 
 }
+/* =========================
+   MOBILE FIXES (iOS / Android)
+   ========================= */
+@media (max-width: 600px) {
+
+ 
+  /* cards */
+ 
+
+  /* reduce heading size */
+  h1 {
+    font-size: 24px;
+  }
+
+  /* shrink form */
+  form input[type="text"],
+  form select,
+  form button {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+}
+@media (max-width: 600px) {
+
+ 
+
+  /* hide less-important columns */
+  .col-pressure,
+  .col-gust {
+    display: none;
+  }
+
+}
+@media (max-width: 600px) {
+
+  /* reduce vertical spacing */
+  .row {
+    margin-bottom: 12px;
+  }
+
+ 
+
+}
+* {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+
+  /* turn NOW into a dashboard */
+  .now-grid {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  /* compass moves top-right */
+  .now-grid svg {
+    width: 68px;
+    height: 68px;
+    margin: 0;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  /* sun/light info becomes compact panel */
+  .light-panel {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+    font-size: 13px;
+    row-gap: 6px;
+  }
+
+}
+
+@media (max-width: 600px) {
+
+  #hourly-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 4px;
+  }
+
+  #hourly-table td {
+    padding: 2px 0;
+  }
+
+  #hourly-table td[data-label="Time"] {
+    font-weight: 600;
+  }
+
+  #hourly-table td[data-label="Temp"] {
+    text-align: right;
+    font-weight: 700;
+  }
+
+  #hourly-table td[data-label="Wind"] {
+    grid-column: 2;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  #hourly-table td[data-label="Conditions"] {
+    grid-column: 1;
+    font-size: 13px;
+  }
+
+  #hourly-table td[data-label="Pressure"] {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    opacity: 0.85;
+  }
+
+}
+@media (max-width: 600px) {
+
+  #ten-day-table tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    row-gap: 4px;
+  }
+
+  #ten-day-table td[data-label="Day / Date"] {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+
+  #ten-day-table td[data-label="High"],
+  #ten-day-table td[data-label="Low"] {
+    grid-column: 1;
+  }
+
+  #ten-day-table td[data-label="Wind"],
+  #ten-day-table td[data-label="Moon"] {
+    grid-column: 2;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  #ten-day-table td[data-label="Conditions"] {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    opacity: 0.9;
+  }
+
+}
+
+@media (max-width: 600px) {
+
+  /* tighten NOW card vertically */
+  #view-now.card {
+    padding: 12px;
+  }
+
+  /* slightly reduce gaps */
+  .now-grid {
+    gap: 10px;
+  }
+
+  /* make compass slightly smaller on phones */
+  .now-grid svg {
+    width: 60px;
+    height: 60px;
+  }
+
+}
+
 
 </style>
 </head>

@@ -425,7 +425,13 @@ th {
 <div id="view-now" class="card">
   <h2>Current Conditions</h2>
   <div class="now-grid" id="now-content"></div>
+
+  <div id="storm-strip" class="storm-strip"
+       style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid #333; color:#ff6600;">
+    <strong id="storm-text"></strong>
+  </div>
 </div>
+
 
 <!-- HOURLY -->
 <div id="view-hourly" class="card" style="display:none">
@@ -440,12 +446,30 @@ th {
 </div>
 
 <script>
+
 function showView(view) {
   ["now","hourly","10day"].forEach(v => {
-    document.getElementById(`view-${v}`).style.display = (v === view) ? "block" : "none";
-    document.getElementById(`btn-${v === "10day" ? "10day" : v}`).classList.toggle("active", v === view);
+    document.getElementById(`view-${v}`).style.display =
+      (v === view) ? "block" : "none";
+
+    document
+      .getElementById(`btn-${v === "10day" ? "10day" : v}`)
+      .classList.toggle("active", v === view);
   });
 }
+
+function timeOnly(dtStr) {
+  if (!dtStr) return "";
+
+  if (dtStr.includes("T")) {
+    const t = dtStr.split("T")[1] || "";
+    return t.slice(0, 5);
+  }
+
+  return dtStr.slice(0, 5);
+}
+
+
 function renderHourly(days) {
   const table = document.getElementById("hourly-table");
 
@@ -455,6 +479,7 @@ function renderHourly(days) {
   }
 
   let html = `
+  <thead>
     <tr>
       <th>Day</th>
       <th>Time</th>
@@ -464,23 +489,28 @@ function renderHourly(days) {
       <th>Gust</th>
       <th>Pressure</th>
     </tr>
-  `;
+  </thead>
+`;
+
 
   days.forEach((d, idx) => {
     if (!Array.isArray(d.hours) || d.hours.length === 0) return;
 
     // DAY HEADER (CLICKABLE)
     html += `
-      <tr onclick="toggleHourlyDay(${idx})"
-          style="background:#111;cursor:pointer;">
-        <td colspan="7"
-            style="color:#ff6600;font-weight:bold;padding:10px 8px;">
-          ▶ ${dayOfWeek(d.date)} — ${d.date}
-        </td>
-      </tr>
-    `;
+  <tbody>
+    <tr onclick="toggleHourlyDay(${idx})"
+        style="background:#111;cursor:pointer;">
+      <td colspan="7"
+          style="color:#ff6600;font-weight:bold;padding:10px 8px;">
+        ▶ ${dayOfWeek(d.date)} — ${d.date}
+      </td>
+    </tr>
+  </tbody>
 
-    html += `<tbody id="hourly-day-${idx}" style="display:none">`;
+  <tbody id="hourly-day-${idx}" style="display:none">
+`;
+
 
     let prevPressure = null;
 
@@ -534,6 +564,33 @@ fetch("/weather", {
 })
 .then(r => r.json())
 .then(data => {
+const stormStrip = document.getElementById("storm-strip");
+const stormText = document.getElementById("storm-text");
+
+if (data.storm) {
+  const start = timeOnly(data.storm.start);
+  const end = timeOnly(data.storm.end);
+
+  const crossesMidnight =
+    data.storm.start.includes("T") &&
+    data.storm.end.includes("T") &&
+    data.storm.start.split("T")[0] !== data.storm.end.split("T")[0];
+
+  const endLabel = crossesMidnight ? `${end} (overnight)` : end;
+
+  const total = data.storm.snow
+    ? `${data.storm.snow}" total`
+    : "accumulation possible";
+
+  stormText.textContent =
+    `${data.storm.type} expected ${start}–${endLabel} (${total})`;
+
+  stormStrip.style.display = "block";
+} else {
+  stormStrip.style.display = "none";
+}
+
+
   renderNow(data.now);
   renderHourly(data.ten_day);
   renderTenDay(data.ten_day);
@@ -608,7 +665,6 @@ function dayOfWeek(dateStr) {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 }
 
-
 function renderTenDay(days) {
   let html = `
     <tr>
@@ -616,51 +672,66 @@ function renderTenDay(days) {
       <th>High</th>
       <th>Low</th>
       <th>Wind</th>
-	  <th>Moon</th>
+      <th>Moon</th>
       <th>Conditions</th>
     </tr>
   `;
 
-days.forEach((d, i) => {
-  html += `
-    <tr onclick="toggleDay(${i})" style="cursor:pointer">
-      <td data-label="Day / Date">
-        <strong>${dayOfWeek(d.date)}</strong>
-        <span style="color:#aaa;margin-left:6px;">${d.date}</span>
-      </td>
+  days.forEach(d => {
 
-      <td data-label="High">${d.high}°</td>
+    // MAIN WEATHER ROW
+    html += `
+      <tr>
+        <td data-label="Day / Date">
+          <strong>${dayOfWeek(d.date)}</strong>
+          <span style="color:#aaa;margin-left:6px;">${d.date}</span>
+        </td>
 
-      <td data-label="Low">${d.low}°</td>
+        <td data-label="High">${d.high}°</td>
+        <td data-label="Low">${d.low}°</td>
 
-      <td data-label="Wind">
-        <span class="wind-arrow"
-              style="transform:rotate(${(d.wind_deg + 180) % 360}deg)">↑</span>
-        ${d.wind_dir}
-      </td>
+        <td data-label="Wind">
+          <span class="wind-arrow"
+                style="transform:rotate(${(d.wind_deg + 180) % 360}deg)">↑</span>
+          ${d.wind_dir}
+        </td>
 
-      <td data-label="Moon">
-        ${d.moon.icon}
-        <span style="font-size:13px;color:#aaa;">
-          ${d.moon.illum}%
-        </span>
-      </td>
+        <td data-label="Moon">
+          ${d.moon.icon}
+          <span style="font-size:13px;color:#aaa;">
+            ${d.moon.illum}%
+          </span>
+        </td>
 
-      <td data-label="Conditions">${d.conditions}</td>
-    </tr>
+        <td data-label="Conditions">${d.conditions}</td>
+      </tr>
+    `;
 
-    <tr id="day-${i}" style="display:none">
-      <td colspan="6" style="padding:10px;color:#aaa">
-        Hourly forecast will go here
-      </td>
-    </tr>
-  `;
-});
+    // DAYLIGHT ROW (ALWAYS VISIBLE)
+    html += `
+      <tr class="daylight-row">
+        <td colspan="6" data-label="Daylight" style="padding:8px 10px 12px;color:#aaa;">
+          <div style="
+            display:flex;
+            gap:16px;
+            flex-wrap:wrap;
+            font-size:13px;
+          ">
+            <div><strong>First Light</strong> ${d.first_light}</div>
+            <div><strong>Sunrise</strong> ${d.sunrise}</div>
+            <div><strong>Sunset</strong> ${d.sunset}</div>
+            <div><strong>Last Light</strong> ${d.last_light}</div>
+            <div><strong>Total Daylight</strong> ${d.daylight}
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
 
+  });
 
   document.getElementById("ten-day-table").innerHTML = html;
 }
-
 
 
 

@@ -71,6 +71,43 @@ def moon_phase_for_date(d):
     else:
         return ("Waning Crescent", illumination, "🌘")
 
+def primary_condition_from_hour(h):
+    """
+    One headline condition for the Current card.
+    Precip ALWAYS beats clouds.
+    """
+    preciptype = h.get("preciptype") or []
+    if isinstance(preciptype, str):
+        preciptype = [preciptype]
+
+    snow = h.get("snowfall") or 0
+    precip = h.get("precip") or 0
+    visibility = h.get("visibility")
+    cloud = h.get("cloudcover")
+
+    # 1) Precip wins
+    if "snow" in preciptype or snow > 0:
+        if "rain" in preciptype:
+            return "Snow & Rain"
+        return "Snow"
+
+    if "rain" in preciptype or precip > 0.01:
+        return "Rain"
+
+    # 2) Fog (low visibility)
+    if visibility is not None and visibility < 1:
+        return "Fog"
+
+    # 3) Sky (derived; we do NOT use “partially cloudy”)
+    if cloud is not None:
+        if cloud > 75:
+            return "Overcast"
+        if cloud > 25:
+            return "Mostly cloudy"
+        return "Clear"
+
+    # 4) Fallback
+    return "Clear"
 
 # ---------- Routes ----------
 
@@ -114,8 +151,69 @@ def weather():
     ).json()
 
     today = vc["days"][0]
+   # --- STORM SUMMARY (today + overnight) ---
+
+    storm = None
+    GAP_HOURS = 2
+
+    storm_hours = []
+    snow_total = 0.0
+    last_snow_index = None
+
+    hour_blocks = today["hours"] + vc["days"][1]["hours"]
+
+    for i, h in enumerate(hour_blocks):
+        conditions = (h.get("conditions") or "").lower()
+
+        if "snow" in conditions:
+            ts = (
+                f"{vc['days'][0]['datetime']}T{h['datetime']}"
+                if i < len(today["hours"])
+                else f"{vc['days'][1]['datetime']}T{h['datetime']}"
+            )
+            storm_hours.append(ts)
+            last_snow_index = i
+        else:
+            if last_snow_index is not None and i - last_snow_index >= GAP_HOURS:
+                break
+
+
+    if storm_hours:
+        storm = {
+            "type": "Snow",
+            "start": storm_hours[0],
+            "end": storm_hours[-1],
+            "snow": round(snow_total, 1)
+        }
+
     yesterday = vc["days"][1] if len(vc["days"]) > 1 else today
     current = vc["currentConditions"]
+    # --- CURRENT CONDITIONS (human-first logic) ---
+
+    current_primary = None
+
+    # 1) DAILY OVERRIDE (fixes Visual Crossing lag)
+    daily_precip = today.get("preciptype") or []
+    if isinstance(daily_precip, str):
+        daily_precip = [daily_precip]
+
+    if "snow" in daily_precip:
+        current_primary = "Snow"
+    elif "rain" in daily_precip:
+        current_primary = "Rain"
+
+    # 2) HOURLY CHECK (next few hours)
+    if not current_primary:
+        for h in today["hours"][:4]:
+            c = primary_condition_from_hour(h)
+            if c not in ("Clear", "Mostly cloudy", "Overcast"):
+                current_primary = c
+                break
+
+    # 3) FINAL FALLBACK
+    if not current_primary:
+        current_primary = primary_condition_from_hour(today["hours"][0])
+
 
     # --- Pressure ---
     pressure_now = round(current["pressure"] * 0.02953, 2)
@@ -134,7 +232,7 @@ def weather():
     now = {
         "temp": round(current["temp"]),
         "feels": round(current["feelslike"]),
-        "conditions": current["conditions"],
+        "conditions": current_primary,
         "high": round(today["tempmax"]),
         "low": round(today["tempmin"]),
         "wind_speed": round(current["windspeed"]),
@@ -169,6 +267,27 @@ def weather():
     for d in vc["days"][:10]:
         day_date = datetime.strptime(d["datetime"], "%Y-%m-%d")
         moon_name, moon_pct, moon_icon = moon_phase_for_date(day_date)
+
+        # --- Sun / Light (PER DAY) ---
+        sunrise_dt = parse_vc_time(d.get("sunrise"))
+        sunset_dt = parse_vc_time(d.get("sunset"))
+
+        first_light = (
+            (sunrise_dt - timedelta(minutes=30)).strftime("%H:%M")
+            if sunrise_dt else "—"
+        )
+
+        last_light = (
+            (sunset_dt + timedelta(minutes=30)).strftime("%H:%M")
+            if sunset_dt else "—"
+        )
+
+        daylight = (
+            format_daylight(sunrise_dt, sunset_dt)
+            if sunrise_dt and sunset_dt else "—"
+        )
+
+        # --- HOURLY (PER DAY) ---
         day_hours = []
 
         for h in d.get("hours", [])[:24]:
@@ -190,17 +309,28 @@ def weather():
             "conditions": d["conditions"],
             "wind_deg": d.get("winddir", 0),
             "wind_dir": deg_to_cardinal(d.get("winddir", 0)),
+
             "moon": {
                 "name": moon_name,
                 "illum": moon_pct,
                 "icon": moon_icon
             },
+
+            "sunrise": d.get("sunrise"),
+            "sunset": d.get("sunset"),
+            "first_light": first_light,
+            "last_light": last_light,
+            "daylight": daylight,
+
             "hours": day_hours
         })
 
 
+
+
     return jsonify({
         "now": now,
+        "storm": storm,
         "hourly": hourly,
         "ten_day": ten_day
     })

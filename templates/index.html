@@ -178,6 +178,21 @@ th {
   margin-right: 6px;
   transform-origin: center;
 }
+.alert-item {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 4px solid #ffcc00;
+}
+
+.alert-warning { border-left-color: #cc0000; }
+.alert-watch   { border-left-color: #ff6600; }
+.alert-advisory{ border-left-color: #ffcc00; }
+
+.alert-item small {
+  color: #aaa;
+  font-size: 12px;
+}
+
 /* =========================
    MOBILE TABLE FIX (iOS)
    ========================= */
@@ -425,14 +440,16 @@ th {
 <div id="view-now" class="card">
   <h2>Current Conditions</h2>
   <div class="now-grid" id="now-content"></div>
-
-  <div id="storm-strip" class="storm-strip"
-       style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid #333; color:#ff6600;">
-    <strong id="storm-text"></strong>
-  </div>
 </div>
-
-
+<!-- WEATHER ALERTS -->
+<div id="alert-card" class="card" style="display:none;">
+  <h2>
+    ⚠ Weather Alerts
+    <span id="alert-count"
+          style="color:#aaa;font-size:13px;"></span>
+  </h2>
+  <div id="alert-body"></div>
+</div>
 <!-- HOURLY -->
 <div id="view-hourly" class="card" style="display:none">
   <h2>Hourly Forecast</h2>
@@ -456,7 +473,14 @@ function showView(view) {
       .getElementById(`btn-${v === "10day" ? "10day" : v}`)
       .classList.toggle("active", v === view);
   });
+
+  // Alerts only show on NOW
+  const alertCard = document.getElementById("alert-card");
+  if (alertCard) {
+    alertCard.style.display = (view === "now") ? "block" : "none";
+  }
 }
+
 
 function timeOnly(dtStr) {
   if (!dtStr) return "";
@@ -553,10 +577,52 @@ function toggleHourlyDay(idx) {
 }
 
 
+function renderAlerts(alerts) {
+  const card = document.getElementById("alert-card");
+  const body = document.getElementById("alert-body");
+  const count = document.getElementById("alert-count");
+
+  if (!alerts || alerts.length === 0) {
+    card.style.display = "none";
+    return;
+  }
+
+  count.textContent = `(${alerts.length})`;
+  body.style.display = "block";
+
+  let html = "";
+
+  alerts.forEach(a => {
+    let cls = "alert-advisory";
+    const sev = (a.severity || "").toLowerCase();
+    if (sev.includes("warning")) cls = "alert-warning";
+    else if (sev.includes("watch")) cls = "alert-watch";
+
+    html += `
+      <div class="alert-item ${cls}">
+        <strong>${a.event}</strong><br>
+        <em>${a.headline}</em><br>
+        <small>${a.onset} → ${a.ends}</small>
+        <p>${a.description}</p>
+      </div>
+    `;
+  });
+
+  body.innerHTML = html;
+  card.style.display = "block";
+}
+
 function getWeather() {
   const zip = document.getElementById("zip").value.trim();
   if (!zip) return;
+// 🔑 RESET alerts immediately on new ZIP
+  const alertCard = document.getElementById("alert-card");
+  const alertBody = document.getElementById("alert-body");
+  const alertCount = document.getElementById("alert-count");
 
+  if (alertCard) alertCard.style.display = "none";
+  if (alertBody) alertBody.innerHTML = "";
+  if (alertCount) alertCount.textContent = "";
 fetch("/weather", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -564,45 +630,12 @@ fetch("/weather", {
 })
 .then(r => r.json())
 .then(data => {
-const stormStrip = document.getElementById("storm-strip");
-const stormText = document.getElementById("storm-text");
-
-if (data.storm) {
-  const start = timeOnly(data.storm.start);
-  const end = timeOnly(data.storm.end);
-
-  const crossesMidnight =
-    data.storm.start.includes("T") &&
-    data.storm.end.includes("T") &&
-    data.storm.start.split("T")[0] !== data.storm.end.split("T")[0];
-
-  const endLabel = crossesMidnight ? `${end} (overnight)` : end;
-
-  const total = data.storm.snow
-    ? `${data.storm.snow}" total`
-    : "accumulation possible";
-
-  stormText.textContent =
-    `${data.storm.type} expected ${start}–${endLabel} (${total})`;
-
-  stormStrip.style.display = "block";
-} else {
-  stormStrip.style.display = "none";
-}
-
+renderAlerts(data.alerts);
 
   renderNow(data.now);
   renderHourly(data.ten_day);
   renderTenDay(data.ten_day);
 });
-}
-
-function toggleDay(idx) {
-  const row = document.getElementById(`day-${idx}`);
-  if (!row) return;
-
-  row.style.display =
-    row.style.display === "none" ? "table-row" : "none";
 }
 
 

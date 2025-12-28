@@ -146,9 +146,24 @@ def weather():
         params={
             "unitGroup": "us",
             "key": VC_KEY,
-            "include": "current,days,hours"
+            "include": "current,days,hours,alerts"
         }
     ).json()
+    alerts_raw = vc.get("alerts", [])
+
+    alerts = []
+    for a in alerts_raw:
+        alerts.append({
+            "event": a.get("event"),
+            "headline": a.get("headline"),
+            "description": a.get("description"),
+            "onset": a.get("onset"),
+            "ends": a.get("ends"),
+            "severity": a.get("severity"),
+            "urgency": a.get("urgency"),
+            "certainty": a.get("certainty"),
+            "areas": a.get("areas")
+        })
 
     today = vc["days"][0]
    # --- STORM SUMMARY (today + overnight) ---
@@ -173,6 +188,7 @@ def weather():
             )
             storm_hours.append(ts)
             last_snow_index = i
+            snow_total += h.get("snow", 0) or 0
         else:
             if last_snow_index is not None and i - last_snow_index >= GAP_HOURS:
                 break
@@ -331,6 +347,7 @@ def weather():
     return jsonify({
         "now": now,
         "storm": storm,
+        "alerts": alerts,
         "hourly": hourly,
         "ten_day": ten_day
     })

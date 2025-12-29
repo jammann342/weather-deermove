@@ -204,6 +204,25 @@ def weather():
 
     yesterday = vc["days"][1] if len(vc["days"]) > 1 else today
     current = vc["currentConditions"]
+    # --- Pressure ---
+    pressure_now = round(current["pressure"] * 0.02953, 2)
+    pressure_prev = today["hours"][0]["pressure"]
+    trend = pressure_trend(current["pressure"], pressure_prev)
+
+    # --- CURRENT (literal Visual Crossing "right now") ---
+    current_raw = {
+        "temp": round(current["temp"]),
+        "feels": round(current.get("feelslike", current["temp"])),
+        "conditions": current.get("conditions", "—"),
+        "wind_speed": round(current.get("windspeed", 0)),
+        "wind_gust": round(current.get("windgust", 0) or 0),
+        "wind_deg": current.get("winddir", 0),
+        "wind_dir": deg_to_cardinal(current.get("winddir", 0)),
+        "pressure": pressure_now,
+        "pressure_trend": trend   # ← THIS WAS MISSING
+    }
+
+
     # --- CURRENT CONDITIONS (human-first logic) ---
 
     current_primary = None
@@ -231,12 +250,7 @@ def weather():
         current_primary = primary_condition_from_hour(today["hours"][0])
 
 
-    # --- Pressure ---
-    pressure_now = round(current["pressure"] * 0.02953, 2)
-    pressure_prev = yesterday["pressure"]
-    trend = pressure_trend(current["pressure"], pressure_prev)
-
-    # --- Sun / Light ---
+     # --- Sun / Light ---
     sunrise_dt = parse_vc_time(today.get("sunrise"))
     sunset_dt = parse_vc_time(today.get("sunset"))
 
@@ -245,7 +259,7 @@ def weather():
     daylight = format_daylight(sunrise_dt, sunset_dt) if sunrise_dt and sunset_dt else "—"
 
     # --- NOW ---
-    now = {
+    today_summary = {
         "temp": round(current["temp"]),
         "feels": round(current["feelslike"]),
         "conditions": current_primary,
@@ -345,12 +359,14 @@ def weather():
 
 
     return jsonify({
-        "now": now,
+        "current": current_raw,
+        "today": today_summary,
         "storm": storm,
         "alerts": alerts,
         "hourly": hourly,
         "ten_day": ten_day
     })
+
 
 
 

@@ -430,17 +430,31 @@ th {
 
 
   <div class="toggle-bar">
-    <button id="btn-now" class="active" onclick="showView('now')">NOW</button>
+    <button id="btn-today" class="active" onclick="showView('today')">TODAY</button>
     <button id="btn-hourly" onclick="showView('hourly')">HOURLY</button>
     <button id="btn-10day" onclick="showView('10day')">10-DAY</button>
   </div>
 </header>
 
-<!-- NOW -->
-<div id="view-now" class="card">
-  <h2>Current Conditions</h2>
-  <div class="now-grid" id="now-content"></div>
+<!-- TODAY -->
+<div id="view-today">
+
+  <!-- CURRENT CONDITIONS -->
+  <div class="card">
+    <h2>Current Conditions</h2>
+    <div class="now-grid" id="current-content"></div>
+  </div>
+
+  <!-- TODAY CONDITIONS -->
+  <div class="card">
+  <h2>Today’s Conditions</h2>
+  <div class="now-grid" id="today-content"></div>
+  <div id="storm-content" style="margin-top:12px; display:none;"></div>
 </div>
+
+
+</div>
+
 <!-- WEATHER ALERTS -->
 <div id="alert-card" class="card" style="display:none;">
   <h2>
@@ -465,21 +479,21 @@ th {
 <script>
 
 function showView(view) {
-  ["now","hourly","10day"].forEach(v => {
-    document.getElementById(`view-${v}`).style.display =
-      (v === view) ? "block" : "none";
+  ["today","hourly","10day"].forEach(v => {
+    const viewEl = document.getElementById(`view-${v}`);
+    const btnEl  = document.getElementById(`btn-${v}`);
 
-    document
-      .getElementById(`btn-${v === "10day" ? "10day" : v}`)
-      .classList.toggle("active", v === view);
+    if (viewEl) viewEl.style.display = (v === view) ? "block" : "none";
+    if (btnEl)  btnEl.classList.toggle("active", v === view);
   });
 
-  // Alerts only show on NOW
+  // Alerts only show on TODAY
   const alertCard = document.getElementById("alert-card");
   if (alertCard) {
-    alertCard.style.display = (view === "now") ? "block" : "none";
+    alertCard.style.display = (view === "today") ? "block" : "none";
   }
 }
+
 
 
 function timeOnly(dtStr) {
@@ -630,9 +644,12 @@ fetch("/weather", {
 })
 .then(r => r.json())
 .then(data => {
-renderAlerts(data.alerts);
+  renderAlerts(data.alerts);
 
-  renderNow(data.now);
+  renderCurrent(data.current);
+  renderToday(data.today);
+  renderToday(data.today);
+  renderStorm(data.storm);
   renderHourly(data.ten_day);
   renderTenDay(data.ten_day);
 });
@@ -641,56 +658,89 @@ renderAlerts(data.alerts);
 
 /* RENDERERS */
 
-function renderNow(n) {
-  document.getElementById("now-content").innerHTML = `
-    <div><div class="label">Temperature</div><div class="value">${n.temp}° (Feels ${n.feels}°)</div></div>
-    <div><div class="label">Conditions</div><div class="value">${n.conditions}</div></div>
-    <div><div class="label">High / Low</div><div class="value">${n.high}° / ${n.low}°</div></div>
+function renderCurrent(n) {
+  document.getElementById("current-content").innerHTML = `
     <div>
-  <div class="label">Wind</div>
-
-  <svg viewBox="0 0 100 100" width="90" height="90" style="display:block;margin:4px 0;">
-    <circle cx="50" cy="50" r="45" stroke="#ff6600" stroke-width="2" fill="none"/>
-    <line
-      x1="50" y1="50" x2="50" y2="10"
-      stroke="red" stroke-width="4"
-      transform="rotate(${n.wind_deg} 50 50)"
-    />
-  </svg>
-
-  <div class="value">
-    ${n.wind_speed} mph ${n.wind_dir}
-    <span style="color:#aaa;font-size:13px;">(gust ${n.wind_gust} mph)</span>
-  </div>
-</div>
+      <div class="label">Temperature</div>
+      <div class="value">${n.temp}° (Feels ${n.feels}°)</div>
+    </div>
 
     <div>
-  <div class="label">Pressure</div>
-  <div class="value">
-    ${n.pressure} inHg ${n.pressure_trend.icon}
-  </div>
-</div>
-<div class="light-panel">
-  <div class="label">First Light</div>
-  <div class="value">${n.first_light}</div>
+      <div class="label">Conditions</div>
+      <div class="value">${n.conditions}</div>
+    </div>
 
-  <div class="label">Sunrise</div>
-  <div class="value">${n.sunrise}</div>
+    <div>
+      <div class="label">Wind</div>
+      <div class="value">
+        ${n.wind_speed} mph ${n.wind_dir}
+        <span style="color:#aaa;font-size:13px;">(gust ${n.wind_gust} mph)</span>
+      </div>
+    </div>
 
-  <div class="label">Sunset</div>
-  <div class="value">${n.sunset}</div>
+    <div>
+      <div class="label">Pressure</div>
+      <div class="value">${n.pressure} inHg ${n.pressure_trend.icon}</div>
+    </div>
+  `;
+}
+function renderToday(n) {
+  document.getElementById("today-content").innerHTML = `
+    <div>
+      <div class="label">Conditions</div>
+      <div class="value">${n.conditions}</div>
+    </div>
 
-  <div class="label">Last Light</div>
-  <div class="value">${n.last_light}</div>
+    <div>
+      <div class="label">High / Low</div>
+      <div class="value">${n.high}° / ${n.low}°</div>
+    </div>
 
-  <div class="label light-divider">Total Daylight</div>
-  <div class="value light-divider">${n.daylight}</div>
-</div>
+    <div class="light-panel">
+      <div class="label">First Light</div>
+      <div class="value">${n.first_light}</div>
 
+      <div class="label">Sunrise</div>
+      <div class="value">${n.sunrise}</div>
 
+      <div class="label">Sunset</div>
+      <div class="value">${n.sunset}</div>
+
+      <div class="label">Last Light</div>
+      <div class="value">${n.last_light}</div>
+
+      <div class="label light-divider">Total Daylight</div>
+      <div class="value light-divider">${n.daylight}</div>
+    </div>
   `;
 }
 
+function renderStorm(storm) {
+  const el = document.getElementById("storm-content");
+
+  if (!storm || storm.type !== "Snow") {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+
+ el.style.display = "block";
+el.innerHTML = `
+  <div style="
+    border-top:1px solid #333;
+    padding-top:10px;
+    font-size:14px;
+    color:#ddd;
+  ">
+    ❄️ <strong>Snow Event:</strong>
+    Starts <strong>${timeOnly(storm.start)}</strong> →
+    Ends <strong>${timeOnly(storm.end)}</strong>
+    <span style="color:#aaa;">(Total Expected ${storm.snow}")</span>
+  </div>
+`;
+
+
+}
 
 
 function dayOfWeek(dateStr) {

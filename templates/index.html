@@ -507,6 +507,17 @@ function timeOnly(dtStr) {
   return dtStr.slice(0, 5);
 }
 
+function formatDateTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 
 function renderHourly(days) {
   const table = document.getElementById("hourly-table");
@@ -724,24 +735,54 @@ function renderStorm(storm) {
     return;
   }
 
- el.style.display = "block";
-el.innerHTML = `
-  <div style="
-    border-top:1px solid #333;
-    padding-top:10px;
-    font-size:14px;
-    color:#ddd;
-  ">
-    ❄️ <strong>Snow Event:</strong>
-    Starts <strong>${timeOnly(storm.start)}</strong> →
-    Ends <strong>${timeOnly(storm.end)}</strong>
-    <span style="color:#aaa;">(Total Expected ${storm.snow}")</span>
-  </div>
-`;
+  const now = new Date();
 
+  const endOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23, 59, 59
+  );
 
+  // Look ahead 24 hours (overnight snow)
+  const lookAheadEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const eventStart = new Date(storm.start);
+  const eventEnd   = new Date(storm.end);
+
+  // OPTION B: relevant snow
+  const isRelevant =
+    eventEnd >= now &&
+    eventStart <= lookAheadEnd;
+
+  if (!isRelevant) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+
+  let label = "Snow Event";
+  if (eventStart <= endOfToday) {
+    label = "Snow Event Today";
+  } else {
+    label = "Snow Event Overnight / Tomorrow";
+  }
+
+  el.style.display = "block";
+  el.innerHTML = `
+    <div style="
+      border-top:1px solid #333;
+      padding-top:10px;
+      font-size:14px;
+      color:#ddd;
+    ">
+      ❄️ <strong>${label}</strong>
+      Starts <strong>${formatDateTime(eventStart)}</strong>
+      Ends <strong>${formatDateTime(eventEnd)}</strong>
+      <span style="color:#aaa;">Total Expected ${storm.snow}"</span>
+    </div>
+  `;
 }
-
 
 function dayOfWeek(dateStr) {
   const d = new Date(dateStr + "T00:00:00");

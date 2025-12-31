@@ -506,6 +506,97 @@ function timeOnly(dtStr) {
 
   return dtStr.slice(0, 5);
 }
+function summarizeWind(hours) {
+  if (!hours || hours.length < 6) return "";
+
+  const speeds = hours.map(h => h.wind_speed);
+  const max = Math.max(...speeds);
+  const min = Math.min(...speeds);
+
+  const midIdx = Math.floor(hours.length / 2);
+  const early = speeds.slice(0, midIdx);
+  const late  = speeds.slice(midIdx);
+
+  const earlyMax = Math.max(...early);
+  const lateMin  = Math.min(...late);
+
+  // Light all day
+  if (max <= 6) {
+    return `Light and steady most of the day (${max} mph max)`;
+  }
+
+  // Windy early, calming later
+  if (earlyMax >= 9 && lateMin <= 5) {
+    return `Windy early, calming later (${earlyMax} → ${lateMin} mph)`;
+  }
+
+  // Moderate and consistent
+  if (max <= 10 && (max - min) <= 4) {
+    return `Moderate and consistent (${min}–${max} mph)`;
+  }
+
+  // Truly variable
+  if ((max - min) >= 8) {
+    return `Variable with gusty periods (${min}–${max} mph)`;
+  }
+
+  return `Moderate with some variability (${min}–${max} mph)`;
+}
+
+
+function summarizePressure(hours) {
+  if (!hours || hours.length < 6) return "";
+
+  const start = hours[0].pressure;
+  const midIdx = Math.floor(hours.length / 2);
+  const mid = hours[midIdx].pressure;
+  const end = hours[hours.length - 1].pressure;
+
+  const earlyChange = mid - start;
+  const lateChange = end - mid;
+  const totalDelta = end - start;
+
+  const abs = Math.abs(totalDelta);
+  const deltaStr = `${totalDelta >= 0 ? "+" : ""}${totalDelta.toFixed(2)} inHg`;
+
+  // Minor / noise day
+  if (abs < 0.04) {
+    return `Mostly steady (minor change ${deltaStr})`;
+  }
+
+  // Early rise, then flat (classic post-front pattern)
+  if (Math.abs(lateChange) < 0.02 && Math.abs(earlyChange) >= 0.04) {
+    const strength =
+      abs < 0.08 ? "light" :
+      abs < 0.14 ? "moderate" :
+      "strong";
+
+    return `Rising early, steady through the day (${strength} change ${deltaStr})`;
+  }
+
+  // Clear rise
+  if (totalDelta > 0.04) {
+    const strength =
+      abs < 0.08 ? "light" :
+      abs < 0.14 ? "moderate" :
+      "strong";
+
+    return `Rising through the day (${strength} change ${deltaStr})`;
+  }
+
+  // Clear fall
+  if (totalDelta < -0.04) {
+    const strength =
+      abs < 0.08 ? "light" :
+      abs < 0.14 ? "moderate" :
+      "strong";
+
+    return `Falling through the day (${strength} drop ${deltaStr})`;
+  }
+
+  return `Mostly steady (${deltaStr})`;
+}
+
 
 function formatDateTime(ts) {
   const d = new Date(ts);
@@ -658,12 +749,12 @@ fetch("/weather", {
   renderAlerts(data.alerts);
 
   renderCurrent(data.current);
-  renderToday(data.today);
-  renderToday(data.today);
+  renderToday(data.today, data.ten_day[0].hours);
   renderStorm(data.storm);
   renderHourly(data.ten_day);
   renderTenDay(data.ten_day);
 });
+
 }
 
 
@@ -695,7 +786,11 @@ function renderCurrent(n) {
     </div>
   `;
 }
-function renderToday(n) {
+function renderToday(n, hours) {
+
+  const windSummary = summarizeWind(hours);
+  const pressureSummary = summarizePressure(hours);
+
   document.getElementById("today-content").innerHTML = `
     <div>
       <div class="label">Conditions</div>
@@ -723,8 +818,14 @@ function renderToday(n) {
       <div class="label light-divider">Total Daylight</div>
       <div class="value light-divider">${n.daylight}</div>
     </div>
+
+    <div style="grid-column:1 / -1; margin-top:10px; font-size:14px;">
+      <div><strong>Wind:</strong> ${windSummary}</div>
+      <div><strong>Pressure:</strong> ${pressureSummary}</div>
+    </div>
   `;
 }
+
 
 function renderStorm(storm) {
   const el = document.getElementById("storm-content");

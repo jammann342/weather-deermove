@@ -506,43 +506,155 @@ function timeOnly(dtStr) {
 
   return dtStr.slice(0, 5);
 }
-function summarizeWind(hours) {
-  if (!hours || hours.length < 6) return "";
 
-  const speeds = hours.map(h => h.wind_speed);
-  const max = Math.max(...speeds);
-  const min = Math.min(...speeds);
+// ===============================
+// CONDITIONS GLOSSARY (CANONICAL)
+// ===============================
+const CONDITIONS_DEFINITIONS = {
+  "Snow early, overcast later":
+    "Snow occurs mainly during the early morning hours and ends. The remainder of the day is dry with persistent cloud cover.",
 
-  const midIdx = Math.floor(hours.length / 2);
-  const early = speeds.slice(0, midIdx);
-  const late  = speeds.slice(midIdx);
+  "Snow early, clearing later":
+    "Snow ends early in the day, followed by decreasing cloud cover and improving sky conditions later.",
 
-  const earlyMax = Math.max(...early);
-  const lateMin  = Math.min(...late);
+  "Intermittent snow showers":
+    "Snow occurs in short, scattered periods with dry breaks in between. Snowfall is not continuous.",
 
-  // Light all day
-  if (max <= 6) {
-    return `Light and steady most of the day (${max} mph max)`;
+  "Snow at times":
+    "Snow appears multiple times during the day without a clearly defined start or end period. Conditions are mixed and variable.",
+
+  "Snow tapering off late":
+    "Snow continues through part of the day and gradually diminishes, ending later in the afternoon or early evening.",
+
+  "Snow developing later":
+    "Conditions are dry early in the day, with snow beginning during the afternoon or early evening hours.",
+
+  "Snow developing overnight":
+    "Daytime conditions are mostly dry. Snow begins after sunset or during the overnight period.",
+
+  "Persistent snow":
+    "Snow is present for most or all of the daylight hours with minimal or no extended breaks.",
+
+  "Overcast":
+    "Cloud cover dominates the entire day with little or no direct sunlight and no significant precipitation.",
+
+  "Mostly cloudy":
+    "Clouds cover most of the sky, with occasional brief breaks or thinning.",
+
+  "Cloudy early, clearing later":
+    "Cloud cover is more prominent during the morning hours, with gradual clearing as the day progresses.",
+
+  "Clearing late":
+    "Clouds dominate most of the day, with noticeable clearing occurring late in the afternoon or near sunset.",
+
+  "Rain early, clearing later":
+    "Rain occurs early in the day and ends, followed by drier conditions later.",
+
+  "Rain at times":
+    "Rain occurs intermittently throughout the day with dry periods between rainfall.",
+
+  "Rain tapering off late":
+    "Rain continues through part of the day and gradually diminishes, ending later in the afternoon or evening.",
+
+  "Rain developing later":
+    "Conditions are dry early in the day, with rain beginning during the afternoon or early evening.",
+
+  "Rain developing overnight":
+    "Daytime conditions are mostly dry. Rain begins after sunset or during the overnight period.",
+
+  "Persistent rain":
+    "Rain is present for most or all of the daylight hours with minimal or no extended breaks.",
+
+  "Clear":
+    "Skies are mostly clear throughout the day with minimal cloud cover and no precipitation.",
+
+  "Mostly clear":
+    "Skies are generally clear with occasional cloud cover, but clouds do not dominate the day.",
+
+  "Mixed conditions":
+    "Weather conditions vary throughout the day without a dominant or clearly classifiable pattern."
+};
+
+function summarizeDayConditions(hours) {
+  if (!hours || hours.length === 0) {
+    return "Mixed conditions";
+  }
+  
+
+  const snow = [];
+  const rain = [];
+  const clear = [];
+  const cloudy = [];
+
+  hours.forEach(h => {
+    const c = h.conditions.toLowerCase();
+    const hour = parseInt(h.time.split(":")[0], 10);
+
+    if (c.includes("snow")) snow.push(hour);
+    else if (c.includes("rain")) rain.push(hour);
+    else if (c.includes("clear")) clear.push(hour);
+    else cloudy.push(hour);
+  });
+
+  const hasSnow = snow.length > 0;
+  const hasRain = rain.length > 0;
+
+  const snowEarly = snow.some(h => h < 9);
+  const snowLate  = snow.some(h => h >= 15);
+  const snowDay   = snow.some(h => h >= 6 && h <= 18);
+
+  // ---------- SNOW ----------
+  if (hasSnow) {
+    if (snowEarly && clear.length > 0) {
+		return "Snow early, clearing later";
+	}
+	if (snowEarly && !snowLate && snow.length <= 4) {
+	  return "Snow early, overcast later";
+	}
+
+    if (!snowEarly && snowLate) {
+      return "Snow developing later";
+    }
+    if (!snowDay) {
+      return "Snow developing overnight";
+    }
+    if (snow.length >= 8) {
+      return "Persistent snow";
+    }
+    if (snow.length <= 3) {
+      return "Intermittent snow showers";
+    }
+    return "Snow at times";
   }
 
-  // Windy early, calming later
-  if (earlyMax >= 9 && lateMin <= 5) {
-    return `Windy early, calming later (${earlyMax} → ${lateMin} mph)`;
+  // ---------- RAIN ----------
+  if (hasRain) {
+    const rainEarly = rain.some(h => h < 9);
+    const rainLate  = rain.some(h => h >= 15);
+    const rainDay   = rain.some(h => h >= 6 && h <= 18);
+
+    if (rainEarly && !rainLate) return "Rain early, clearing later";
+    if (!rainEarly && rainLate) return "Rain developing later";
+    if (!rainDay) return "Rain developing overnight";
+    if (rain.length >= 8) return "Persistent rain";
+    return "Rain at times";
   }
 
-  // Moderate and consistent
-  if (max <= 10 && (max - min) <= 4) {
-    return `Moderate and consistent (${min}–${max} mph)`;
+  // ---------- CLOUD / CLEAR ----------
+  if (clear.length && cloudy.length) {
+    return "Cloudy early, clearing later";
   }
 
-  // Truly variable
-  if ((max - min) >= 8) {
-    return `Variable with gusty periods (${min}–${max} mph)`;
+  if (cloudy.length > clear.length) {
+    return "Overcast";
   }
 
-  return `Moderate with some variability (${min}–${max} mph)`;
+  if (clear.length > cloudy.length) {
+    return "Mostly clear";
+  }
+
+  return "Mixed conditions";
 }
-
 
 function summarizePressure(hours) {
   if (!hours || hours.length < 6) return "";
@@ -786,15 +898,66 @@ function renderCurrent(n) {
     </div>
   `;
 }
+function summarizeWind(hours) {
+  if (!hours || hours.length < 6) return "Unavailable";
+
+  const speeds = hours.map(h => h.wind_speed);
+  const max = Math.max(...speeds);
+  const min = Math.min(...speeds);
+
+  const midIdx = Math.floor(hours.length / 2);
+  const early = speeds.slice(0, midIdx);
+  const late  = speeds.slice(midIdx);
+
+  const earlyMax = Math.max(...early);
+  const lateMin  = Math.min(...late);
+
+  if (max <= 6) {
+    return `Light and steady (${max} mph max)`;
+  }
+
+  if (earlyMax >= 9 && lateMin <= 5) {
+    return `Windy early, calming later (${earlyMax} → ${lateMin} mph)`;
+  }
+
+  if (max <= 10 && (max - min) <= 4) {
+    return `Moderate and consistent (${min}–${max} mph)`;
+  }
+
+  if ((max - min) >= 8) {
+    return `Variable with gusty periods (${min}–${max} mph)`;
+  }
+
+  return `Moderate with variability (${min}–${max} mph)`;
+}
+
 function renderToday(n, hours) {
 
   const windSummary = summarizeWind(hours);
   const pressureSummary = summarizePressure(hours);
 
+  // Interpret the entire day from hourly data
+  const dayCondition = summarizeDayConditions(hours);
+
+  // Look up definition (guaranteed by glossary)
+  const conditionDef =
+    CONDITIONS_DEFINITIONS[dayCondition] || "";
+
   document.getElementById("today-content").innerHTML = `
     <div>
       <div class="label">Conditions</div>
-      <div class="value">${n.conditions}</div>
+      <div class="value">
+        ${dayCondition}
+        <div style="
+          color:#aaa;
+          font-size:13px;
+          margin-top:4px;
+          font-weight:400;
+          line-height:1.4;
+        ">
+          ${conditionDef}
+        </div>
+      </div>
     </div>
 
     <div>

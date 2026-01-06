@@ -266,7 +266,7 @@ def weather():
         "high": round(today["tempmax"]),
         "low": round(today["tempmin"]),
         "wind_speed": round(current["windspeed"]),
-        "wind_gust": round(current.get("windgust", 0)),
+        "wind_gust": round(current.get("windgust") or 0),
         "wind_deg": current["winddir"],
         "wind_dir": deg_to_cardinal(current["winddir"]),
         "pressure": pressure_now,
@@ -288,7 +288,7 @@ def weather():
             "wind_speed": round(h["windspeed"]),
             "wind_dir": deg_to_cardinal(h["winddir"]),
             "wind_deg": h["winddir"],
-            "gust": round(h.get("windgust", 0)),
+            "gust": round(h.get("windgust") or 0),
             "pressure": round(h["pressure"] * 0.02953, 2)
         })
 
@@ -328,7 +328,7 @@ def weather():
                 "wind_speed": round(h["windspeed"]),
                 "wind_dir": deg_to_cardinal(h["winddir"]),
                 "wind_deg": h["winddir"],
-                "gust": round(h.get("windgust", 0)),
+                "gust": round(h.get("windgust") or 0),
                 "pressure": round(h["pressure"] * 0.02953, 2)
             })
 
